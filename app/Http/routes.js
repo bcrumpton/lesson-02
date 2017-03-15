@@ -27,79 +27,71 @@ const fetch = require('node-fetch');
 //   response.json(luke);
 // }
 
-// Route.get('/', function * (request, response) {
-//   const res = yield fetch('http://swapi.co/api/people/1');
-//   const luke = yield res.json();
-//
-//   response.json(luke);
-// });
+Route.get('/', function * (request, response) {
+  const res = yield fetch('http://swapi.co/api/people/1');
+  const luke = yield res.json();
+
+  response.json(luke);
+});
 
 // const Database = require('knex')(config.development);
 const Database = use('Database');
+const Restaurant = use('App/Model/Restaurant');
+const Review = use('App/Model/Review');
 
 Route.get('/restaurants', function * (request, response) {
-  const restaurants = yield Database.select().from('restaurants');
-
+  // Get all rows from the "restaurants" table
+  // const items = yield Database.select().from('restaurants');
+  const items = yield Restaurant.with('reviews').fetch();
   response.send(items);
 });
 
 Route.get('/restaurants/:id', function * (request, response) {
   const id = request.param('id');
-
-  const r = yield Database.select().from('restaurants')
-    .where({ id: id })
-    .limit(1)
-    // This is getting the first item from the result
-    .first();
-
-  // Check if the restaurant exists
-  if (r === undefined) {
-    // Send the status code 404 (not found) witha a JSON error object
-    return response.status(404).json({
-      err: 'Not found'
-    });
-  }
+  // SELECT * FROM restaurants WHERE id = ? LIMIT 1
+  const r = yield Restaurant.findOrFail(id);
+  // Load all related "reviews"
+  yield r.related('reviews').load();
 
   response.send(r);
 });
 
 Route.post('/restaurants', function * (request, response) {
-  const restaurant = {
-    name: request.input('name'),
-    category: request.input('category'),
-    wait_time: request.input('wait_time'),
-    take_out: request.input('take_out'),
-    formal: request.input('formal'),
-    address: request.input('address'),
-    flair: request.input('flair'),
-    price_level: request.input('price_level'),
-  }
+  const input = request
+    .only('name', 'category', 'wait_time', 'take_out', 'formal', 'address', 'flair', 'price_level');
 
-  yield Database.insert(restaurant).into('restaurants');
+  const restaurant = yield Restaurant.create(input);
 
   response.send(restaurant);
 });
 
 Route.put('/restaurants/:id', function * (request, response) {
+  // Get the id from the request
   const id = request.param('id');
 
-  const r = yield Database.select().from('restaurants')
-    .where({ id: id })
-    .limit(1)
-    // This is getting the first item from the result
-    .first();
+  // Find the restaurant by its id
+  const r = yield Restaurant.findOrFail(id);
 
-  // Check if the restaurant exists
-  if (r === undefined) {
-    // Send the status code 404 (not found) witha a JSON error object
-    return response.status(404).json({
-      err: 'Not found'
-    });
-  }
-
+  // Get the JSON input from the request
   const input = request.only('name', 'category', 'wait_time', 'take_out', 'formal', 'address', 'flair', 'price_level');
 
-  yield Database.table('restaurants').update(input);
+  // Fill in our restaurant with updated input
+  r.fill(input);
 
-  response.send(input);
+  // Save our changes to the database
+  yield r.save();
+
+  response.send(r);
+});
+
+Route.post('/restaurants/:restaurant_id/reviews', function * (request, response) {
+  const restaurant_id = request.param('restaurant_id');
+  const input = request.only('rating', 'review');
+  input.restaurant_id = restaurant_id;
+
+  // const review = new Review(input);
+  // yield review.save();
+  const review = yield Review.create(input);
+
+  response.send(review);
 });

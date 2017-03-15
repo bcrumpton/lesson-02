@@ -21,7 +21,7 @@ class RestaurantsTableSchema extends Schema {
       table.boolean('formal');
 
       table.timestamps();
-    })
+    });
   }
   // How to undo the 'up' function
   down () {
