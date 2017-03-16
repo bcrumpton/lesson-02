@@ -15,6 +15,11 @@ class ReviewsTableSchema extends Schema {
         .inTable('restaurants')
         .onDelete('CASCADE');
 
+      table.integer('user_id')
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE');
+
       table.timestamps();
     });
   }
